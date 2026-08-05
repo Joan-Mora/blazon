@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --blazon-bg: #101014;
+  --blazon-surface: #1a1a21;
+  --blazon-red: #e11d2e;
+  --blazon-gold: #f5c542;
+  --blazon-text: #f5f5f4;
+}
+
+body {
+  background: var(--blazon-bg);
+  color: var(--blazon-text);
+}
+
+/* ── Org tenant surface (driven entirely by per-org CSS vars) ─────────── */
+
+.org-site {
+  background: var(--org-bg);
+  color: var(--org-text);
+  font-family: var(--org-font);
+  min-height: 100vh;
+}
+
+.org-surface {
+  background: var(--org-surface);
+}
+
+.org-primary {
+  color: var(--org-primary);
+}
+
+.org-accent {
+  color: var(--org-accent);
+}
+
+.org-btn-primary {
+  background: var(--org-primary);
+  color: var(--org-text);
+  font-weight: 700;
+  padding: 0.75rem 1.75rem;
+  border-radius: 0.375rem;
+  display: inline-block;
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.org-btn-primary:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.org-btn-outline {
+  border: 2px solid var(--org-accent);
+  color: var(--org-accent);
+  font-weight: 700;
+  padding: 0.75rem 1.75rem;
+  border-radius: 0.375rem;
+  display: inline-block;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.org-btn-outline:hover {
+  background: var(--org-accent);
+  color: var(--org-bg);
+}

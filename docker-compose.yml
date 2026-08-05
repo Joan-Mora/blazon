@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: blazon-postgres
+    environment:
+      POSTGRES_USER: blazon
+      POSTGRES_PASSWORD: blazon
+      POSTGRES_DB: blazon
+    ports:
+      - "5432:5432"
+    volumes:
+      - blazon_pgdata:/var/lib/postgresql/data
+
+volumes:
+  blazon_pgdata:

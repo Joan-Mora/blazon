@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity ────────────────────────────────────────────────────────────────
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  avatarUrl     String?
+  isPlatformAdmin Boolean      @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  accounts      Account[]
+  memberships   Membership[]
+  gameAccounts  GameAccount[]
+  registrations Registration[]
+}
+
+/// OAuth identity (google | twitch | dev)
+model Account {
+  id                String @id @default(cuid())
+  provider          String
+  providerAccountId String
+  userId            String
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ─── Games (game-agnostic core; LoL is just the first row) ─────────────────
+
+model Game {
+  id          String       @id @default(cuid())
+  slug        String       @unique // "lol", "valorant", ...
+  name        String
+  iconUrl     String?
+
+  tournaments Tournament[]
+  accounts    GameAccount[]
+}
+
+/// A user's identity inside a specific game (Riot ID, Steam ID, ...)
+model GameAccount {
+  id       String  @id @default(cuid())
+  userId   String
+  gameId   String
+  handle   String // e.g. "Faker#KR1"
+  verified Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+}
+
+// ─── Tenancy ─────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  tagline   String?
+  mission   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  theme        OrganizationTheme?
+  pages        OrganizationPage[]
+  memberships  Membership[]
+  tournaments  Tournament[]
+  subscription Subscription?
+}
+
+model OrganizationTheme {
+  id             String  @id @default(cuid())
+  organizationId String  @unique
+  background     String  @default("#0a0a0a")
+  surface        String  @default("#161616")
+  primary        String  @default("#e11d2e")
+  accent         String  @default("#f5e642")
+  text           String  @default("#ffffff")
+  textMuted      String  @default("#a3a3a3")
+  fontFamily     String  @default("'Poppins', 'Montserrat', sans-serif")
+  logoText       String  @default("")
+  logoUrl        String?
+  faviconEmoji   String  @default("♥")
+  heroImageUrl   String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model OrganizationPage {
+  id             String      @id @default(cuid())
+  organizationId String
+  slug           String // "home", "torneos", "academia", ...
+  title          String
+  published      Boolean     @default(true)
+  sortOrder      Int         @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  blocks       PageBlock[]
+
+  @@unique([organizationId, slug])
+}
+
+model PageBlock {
+  id        String @id @default(cuid())
+  pageId    String
+  type      String // BlockType from @blazon/shared
+  sortOrder Int    @default(0)
+  data      Json   @default("{}")
+
+  page OrganizationPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String // OrgRole from @blazon/shared
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+// ─── Tournaments ─────────────────────────────────────────────────────────────
+
+model Tournament {
+  id             String    @id @default(cuid())
+  organizationId String
+  gameId         String
+  slug           String
+  name           String
+  description    String?
+  rules          String?
+  prizePool      String?
+  format         String    @default("SINGLE_ELIM")
+  status         String    @default("DRAFT") // TournamentStatus
+  maxParticipants Int      @default(16)
+  startsAt       DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  game          Game           @relation(fields: [gameId], references: [id])
+  registrations Registration[]
+  matches       Match[]
+
+  @@unique([organizationId, slug])
+  @@index([status])
+}
+
+model Registration {
+  id           String    @id @default(cuid())
+  tournamentId String
+  userId       String
+  teamName     String?
+  status       String    @default("CONFIRMED") // RegistrationStatus
+  checkedInAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  matchesAsA Match[] @relation("MatchParticipantA")
+  matchesAsB Match[] @relation("MatchParticipantB")
+  matchesWon Match[] @relation("MatchWinner")
+
+  @@unique([tournamentId, userId])
+}
+
+/// Single-elimination bracket node. `round` starts at 1; match `position` p in
+/// round r feeds slot (p % 2) of match floor(p/2) in round r+1.
+model Match {
+  id             String    @id @default(cuid())
+  tournamentId   String
+  round          Int
+  position       Int
+  participantAId String?
+  participantBId String?
+  scoreA         Int?
+  scoreB         Int?
+  winnerId       String?
+  status         String    @default("SCHEDULED") // SCHEDULED | COMPLETED
+  playedAt       DateTime?
+
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  participantA Registration? @relation("MatchParticipantA", fields: [participantAId], references: [id], onDelete: SetNull)
+  participantB Registration? @relation("MatchParticipantB", fields: [participantBId], references: [id], onDelete: SetNull)
+  winner       Registration? @relation("MatchWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentId, round, position])
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+model Plan {
+  id              String  @id @default(cuid())
+  code            String  @unique // PlanCode
+  name            String
+  priceMonthlyUsd Int
+  features        Json    @default("{}")
+  stripePriceId   String?
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  organizationId       String    @unique
+  planId               String
+  status               String    @default("INACTIVE") // INACTIVE | ACTIVE | PAST_DUE | CANCELED | COMPED
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+}

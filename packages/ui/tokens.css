@@ -1,0 +1,32 @@
+/*
+ * Blazon design tokens — base themable variables.
+ * Each org tenant overrides --org-* variables at runtime.
+ */
+:root {
+  /* Platform brand */
+  --blazon-bg: #0b0d12;
+  --blazon-surface: #12151d;
+  --blazon-primary: #c8a24a; /* heraldic gold */
+  --blazon-text: #f4f2ec;
+  --blazon-muted: #8a8f9c;
+
+  /* Org tenant theme (defaults; overridden per tenant) */
+  --org-bg: #0a0a0a;
+  --org-surface: #141414;
+  --org-primary: #e11d2e;
+  --org-accent: #f5d90a;
+  --org-text: #ffffff;
+  --org-muted: #9a9a9a;
+  --org-font-heading: "Poppins", "Montserrat", sans-serif;
+  --org-font-body: "Montserrat", "Poppins", sans-serif;
+
+  /* Spacing / radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --space-6: 64px;
+}
